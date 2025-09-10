@@ -54,6 +54,23 @@ local function path_in_bar(buf)
   return barstr
 end
 
+local function custom_path_in_bar(buf)
+  local filepath = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(buf), ':.')
+  local ft = vim.bo[buf].filetype
+  local icon, hl = require('lspsaga.util').icon_from_devicon(ft)
+
+  local bar = '%#'
+    .. (hl or 'SagaFileIcon')
+    .. '#'
+    .. (icon and icon .. ' ' or '')
+    .. '%*'
+    .. '%#SagaFileName#'
+    .. filepath
+    .. '%*'
+
+  return bar
+end
+
 --@private
 local function binary_search(tbl, line)
   local left = 1
@@ -148,7 +165,14 @@ local function render_symbol_winbar(buf, symbols)
   end
 
   local current_line = api.nvim_win_get_cursor(cur_win)[1]
-  local winbar_str = config.show_file and path_in_bar(buf) or ''
+  local winbar_str = ''
+  if config.show_file then
+    if config.respect_root then
+      winbar_str = custom_path_in_bar(buf)
+    else
+      winbar_str = path_in_bar(buf)
+    end
+  end
 
   local winbar_elements = {}
 
@@ -196,7 +220,11 @@ local function file_bar(buf)
     return
   end
   if config.show_file then
-    api.nvim_set_option_value('winbar', path_in_bar(buf), { scope = 'local', win = winid })
+    if config.respect_root then
+      api.nvim_set_option_value('winbar', custom_path_in_bar(buf), { scope = 'local', win = winid })
+    else
+      api.nvim_set_option_value('winbar', path_in_bar(buf), { scope = 'local', win = winid })
+    end
   else
     api.nvim_set_option_value(
       'winbar',
